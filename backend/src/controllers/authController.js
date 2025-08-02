@@ -52,14 +52,14 @@ const register = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
     logger.info(`User registered: ${email} with role: ${role}`);
 
     res.status(201).json({
       success: true,
-      message: `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully`,
+      message: 'User registered successfully',
       data: {
         user: {
           _id: user._id,
@@ -72,10 +72,11 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Registration error:', error);
+    logger.error('Registration error:', error, error && error.stack);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error && error.message
     });
   }
 };
@@ -116,7 +117,7 @@ const login = async (req, res) => {
 
     logger.info(`User logged in: ${email}`);
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {

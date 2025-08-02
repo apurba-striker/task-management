@@ -1,6 +1,5 @@
 const request = require('supertest');
-// ✅ Import app from your existing server.js file
-const { app } = require('../../src/server');
+const app = require('../../src/app'); // Import app directly
 const jwt = require('jsonwebtoken');
 
 describe('Task Endpoints', () => {

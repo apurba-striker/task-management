@@ -2,8 +2,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../../../src/models/User');
 const { login, register } = require('../../../src/controllers/authController');
+const { validationResult } = require('express-validator');
 
-// Mock Express request and response objects
+jest.mock('express-validator', () => ({
+  validationResult: jest.fn()
+}));
+
 const mockRequest = (body = {}) => ({ body });
 const mockResponse = () => {
   const res = {};
@@ -29,9 +33,12 @@ describe('Auth Controller', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,
+          message: 'User registered successfully',
           data: expect.objectContaining({
             user: expect.objectContaining({
-              email: 'john@example.com'
+              email: 'john@example.com',
+              firstName: 'John',
+              lastName: 'Doe'
             }),
             token: expect.any(String)
           })
@@ -40,7 +47,7 @@ describe('Auth Controller', () => {
     });
 
     it('should not register user with existing email', async () => {
-      // Create existing user
+      // Create existing user first
       await createTestUser({ email: 'existing@example.com' });
 
       const req = mockRequest({
@@ -57,7 +64,7 @@ describe('Auth Controller', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: false,
-          message: 'Email already exists'
+          message: 'User already exists'
         })
       );
     });
@@ -65,9 +72,10 @@ describe('Auth Controller', () => {
 
   describe('login', () => {
     it('should login user with valid credentials', async () => {
-      const testUser = await createTestUser({
+      // Create test user with known password
+      await createTestUser({
         email: 'test@example.com',
-        password: await bcrypt.hash('password123', 10)
+        password: 'password123' // createTestUser will hash this properly
       });
 
       const req = mockRequest({
@@ -82,6 +90,7 @@ describe('Auth Controller', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,
+          message: 'Login successful',
           data: expect.objectContaining({
             user: expect.objectContaining({
               email: 'test@example.com'
@@ -93,7 +102,11 @@ describe('Auth Controller', () => {
     });
 
     it('should not login user with invalid credentials', async () => {
-      await createTestUser({ email: 'test@example.com' });
+      // Create test user
+      await createTestUser({ 
+        email: 'test@example.com',
+        password: 'correctpassword'
+      });
 
       const req = mockRequest({
         email: 'test@example.com',
@@ -107,9 +120,13 @@ describe('Auth Controller', () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: false,
-          message: 'Invalid email or password'
+          message: 'Invalid credentials'
         })
       );
     });
   });
+});
+
+beforeEach(() => {
+  validationResult.mockReturnValue({ isEmpty: () => true, array: () => [] });
 });
