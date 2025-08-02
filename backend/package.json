@@ -14,7 +14,8 @@
     "docker:down": "docker-compose down",
     "docker:clean": "docker-compose down -v --rmi all",
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+      "create-admin": "node scripts/createAdmin.js"
   },
   "dependencies": {
     "aws-sdk": "^2.1450.0",
