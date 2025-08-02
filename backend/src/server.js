@@ -22,7 +22,10 @@ const server = http.createServer(app);
 
 // ✅ Enhanced CORS configuration for Docker
 const corsOptions = {
-  origin: 'http://localhost:3000',
+   origin: [
+    'http://localhost:3000',           // Browser accessing frontend
+    'http://127.0.0.1:3000',          // Alternative localhost
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -142,10 +145,12 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 // ✅ Listen on all interfaces for Docker
-server.listen(PORT, '0.0.0.0', () => {
-  logger.info(`Server running on port ${PORT}`);
-  console.log(`🚀 Server started on port ${PORT}`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Server running on port ${PORT}`);
+    console.log(`🚀 Server started on port ${PORT}`);
+    console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  });
+}
 
 module.exports = { app, server };

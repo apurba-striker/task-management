@@ -1,10 +1,9 @@
 node_modules
-npm-debug.log
+dist
 .git
 .gitignore
-README.md
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-build
+Dockerfile
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.env
