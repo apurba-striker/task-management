@@ -9,7 +9,8 @@ A comprehensive full-stack task management system built with React.js frontend a
 
 # Deployment
 
-Live Link : https://task-management-chi-seven.vercel.app/
+Live Link : https://task-management-chi-seven.vercel.app/ (Admin credential : **Email**: admin@taskmanager.com
+**Password**: admin123456)
 ## 📑 Table of Contents
 
 - [Features](#features)
