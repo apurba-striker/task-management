@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: task-management-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        fromGroup: task-management-secrets
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: MONGODB_URI
+        fromGroup: task-management-secrets
+      - key: FRONTEND_URL
+        value: https://task-management-frontend.vercel.app
