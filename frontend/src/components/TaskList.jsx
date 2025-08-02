@@ -14,14 +14,12 @@ import {
   Eye,
   Edit,
   Trash2,
-  MoreVertical,
   Grid,
   List,
   SortAsc,
   SortDesc,
   Target,
   Zap,
-  FileText,
   Tag
 } from 'lucide-react';
 import useTaskStore from '../store/taskStore';
@@ -45,17 +43,24 @@ const TaskList = () => {
   
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
+  const [viewMode, setViewMode] = useState('table');
   const [sortBy, setSortBy] = useState('dueDate');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [selectedTasks, setSelectedTasks] = useState([]);
 
+  // ✅ Fixed: Fetch tasks with sorting parameters
   useEffect(() => {
-    fetchTasks({ ...filters, search: searchTerm }).catch(error => {
+    const fetchParams = {
+      ...filters,
+      search: searchTerm,
+      sortBy: sortBy,
+      sortOrder: sortOrder
+    };
+    
+    fetchTasks(fetchParams).catch(error => {
       console.error('Failed to fetch tasks:', error);
       toast.error('Failed to load tasks');
     });
-  }, [fetchTasks, filters, searchTerm]);
+  }, [fetchTasks, filters, searchTerm, sortBy, sortOrder]);
 
   const handleDelete = async (taskId) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
@@ -71,6 +76,57 @@ const TaskList = () => {
   const handleTaskClick = (taskId) => {
     navigate(`/tasks/${taskId}`);
   };
+
+  // ✅ Fixed: Handle sort functionality
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // ✅ Added: Client-side sorting as fallback
+  const sortedTasks = React.useMemo(() => {
+    const safeTasks = tasks || [];
+    if (!safeTasks.length) return [];
+    
+    return [...safeTasks].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'title':
+          aValue = a.title?.toLowerCase() || '';
+          bValue = b.title?.toLowerCase() || '';
+          break;
+        case 'status':
+          aValue = a.status || '';
+          bValue = b.status || '';
+          break;
+        case 'priority':
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          aValue = priorityOrder[a.priority] || 0;
+          bValue = priorityOrder[b.priority] || 0;
+          break;
+        case 'dueDate':
+          aValue = a.dueDate ? new Date(a.dueDate) : new Date('9999-12-31');
+          bValue = b.dueDate ? new Date(b.dueDate) : new Date('9999-12-31');
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt);
+          bValue = new Date(b.createdAt);
+          break;
+        default:
+          aValue = a.dueDate ? new Date(a.dueDate) : new Date('9999-12-31');
+          bValue = b.dueDate ? new Date(b.dueDate) : new Date('9999-12-31');
+      }
+      
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [tasks, sortBy, sortOrder]);
 
   const getStatusInfo = (status) => {
     switch (status) {
@@ -140,8 +196,6 @@ const TaskList = () => {
     return user.role === 'admin' || task.createdBy?._id === user._id;
   };
 
-  const safeTasks = tasks || [];
-
   const isOverdue = (dueDate, status) => {
     return status !== 'completed' && new Date(dueDate) < new Date();
   };
@@ -151,7 +205,6 @@ const TaskList = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Enhanced Header */}
         <div className="bg-white shadow-lg rounded-2xl p-6 lg:p-8 border border-gray-100 relative overflow-hidden">
-          {/* Background Pattern */}
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5"></div>
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200 to-purple-200 rounded-full opacity-20 transform translate-x-16 -translate-y-16"></div>
           
@@ -163,7 +216,7 @@ const TaskList = () => {
               </h1>
               <p className="text-gray-600 mt-2 flex items-center">
                 <Zap className="h-4 w-4 mr-1" />
-                {safeTasks.length} total tasks • {safeTasks.filter(t => t.status === 'completed').length} completed
+                {sortedTasks.length} total tasks • {sortedTasks.filter(t => t.status === 'completed').length} completed
               </p>
             </div>
             
@@ -222,13 +275,33 @@ const TaskList = () => {
                 </button>
               </div>
               
-              {/* Sort Button */}
+              {/* Sort Dropdown */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="dueDate">📅 Due Date</option>
+                  <option value="title">📝 Title</option>
+                  <option value="status">📊 Status</option>
+                  <option value="priority">🚩 Priority</option>
+                  <option value="createdAt">🕒 Created</option>
+                </select>
+              </div>
+              
+              {/* Sort Order Button */}
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="inline-flex items-center px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors duration-200"
-                title="Toggle Sort Order"
+                className={`inline-flex items-center px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors duration-200 ${
+                  sortOrder === 'desc' ? 'bg-blue-50 border-blue-300 text-blue-700' : ''
+                }`}
+                title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
               >
                 {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                <span className="ml-2 text-sm font-medium">
+                  {sortOrder === 'asc' ? 'A-Z' : 'Z-A'}
+                </span>
               </button>
               
               {/* Filters Button */}
@@ -245,6 +318,26 @@ const TaskList = () => {
               </button>
             </div>
           </div>
+
+          {/* Sort Info Display */}
+          {(sortBy !== 'dueDate' || sortOrder !== 'asc') && (
+            <div className="mt-4 flex items-center justify-between bg-blue-50 rounded-lg px-4 py-2">
+              <div className="flex items-center text-sm text-blue-700">
+                <span className="font-medium">
+                  Sorted by: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)} ({sortOrder === 'asc' ? 'Ascending' : 'Descending'})
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setSortBy('dueDate');
+                  setSortOrder('asc');
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Reset to default
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filters Panel */}
@@ -262,7 +355,8 @@ const TaskList = () => {
               <p className="text-gray-600 font-medium">Loading your tasks...</p>
             </div>
           </div>
-        ) : safeTasks.length === 0 ? (
+        ) : sortedTasks.length === 0 ? (
+          // ✅ Fixed: Moved comment outside and use sortedTasks
           <div className="bg-white shadow-lg rounded-2xl p-12 border border-gray-100">
             <div className="text-center">
               <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -292,19 +386,51 @@ const TaskList = () => {
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Task Details
+                      <button
+                        onClick={() => handleSort('title')}
+                        className="flex items-center space-x-1 hover:text-blue-600 transition-colors"
+                      >
+                        <span>Task Details</span>
+                        {sortBy === 'title' && (
+                          sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Status
+                      <button
+                        onClick={() => handleSort('status')}
+                        className="flex items-center space-x-1 hover:text-blue-600 transition-colors"
+                      >
+                        <span>Status</span>
+                        {sortBy === 'status' && (
+                          sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Priority
+                      <button
+                        onClick={() => handleSort('priority')}
+                        className="flex items-center space-x-1 hover:text-blue-600 transition-colors"
+                      >
+                        <span>Priority</span>
+                        {sortBy === 'priority' && (
+                          sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Assigned To
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Due Date
+                      <button
+                        onClick={() => handleSort('dueDate')}
+                        className="flex items-center space-x-1 hover:text-blue-600 transition-colors"
+                      >
+                        <span>Due Date</span>
+                        {sortBy === 'dueDate' && (
+                          sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />
+                        )}
+                      </button>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
@@ -312,7 +438,7 @@ const TaskList = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {safeTasks
+                  {sortedTasks
                     .filter(task => task && task._id)
                     .map((task, index) => {
                       const statusInfo = getStatusInfo(task.status);
@@ -448,7 +574,7 @@ const TaskList = () => {
         ) : (
           // Enhanced Grid View
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {safeTasks
+            {sortedTasks
               .filter(task => task && task._id)
               .map((task, index) => {
                 const statusInfo = getStatusInfo(task.status);
@@ -462,10 +588,8 @@ const TaskList = () => {
                     className="group bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer relative overflow-hidden"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    {/* Background Gradient */}
                     <div className={`absolute inset-0 bg-gradient-to-br ${priorityInfo.bgGradient} opacity-0 group-hover:opacity-30 transition-opacity duration-300`}></div>
                     
-                    {/* Priority Indicator */}
                     <div className={`absolute top-0 left-0 w-1 h-full ${
                       task.priority === 'urgent' ? 'bg-red-500' :
                       task.priority === 'high' ? 'bg-orange-500' :
@@ -473,7 +597,6 @@ const TaskList = () => {
                     }`}></div>
                     
                     <div className="relative">
-                      {/* Header */}
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center space-x-2">
                           {statusInfo.icon}
@@ -486,7 +609,6 @@ const TaskList = () => {
                         </span>
                       </div>
                       
-                      {/* Title & Description */}
                       <div className="mb-4">
                         <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-2">
                           {task.title || 'Untitled Task'}
@@ -498,7 +620,6 @@ const TaskList = () => {
                         )}
                       </div>
                       
-                      {/* Tags */}
                       {task.tags && task.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-4">
                           {task.tags.slice(0, 3).map((tag, i) => (
@@ -513,7 +634,6 @@ const TaskList = () => {
                         </div>
                       )}
                       
-                      {/* Assignee & Due Date */}
                       <div className="space-y-3 mb-4">
                         <div className="flex items-center space-x-2">
                           <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
@@ -535,7 +655,6 @@ const TaskList = () => {
                         </div>
                       </div>
                       
-                      {/* Actions */}
                       <div className="flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <div className="flex space-x-2">
                           <button
@@ -589,7 +708,7 @@ const TaskList = () => {
             <Pagination
               currentPage={pagination.current}
               totalPages={pagination.pages}
-              onPageChange={(page) => fetchTasks({ ...filters, page })}
+              onPageChange={(page) => fetchTasks({ ...filters, page, sortBy, sortOrder })}
             />
           </div>
         )}
