@@ -7,6 +7,9 @@
 
 A comprehensive full-stack task management system built with React.js frontend and Node.js backend, featuring authentication, file uploads, real-time updates, and comprehensive testing.
 
+# Deployment
+
+Live Link : https://task-management-chi-seven.vercel.app/
 ## 📑 Table of Contents
 
 - [Features](#features)
